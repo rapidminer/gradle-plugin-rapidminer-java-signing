@@ -1,0 +1,9 @@
+/build/
+/bin/
+.gradle
+.settings
+target/
+.classpath
+.project
+.idea/
+gradle-plugin-rapidminer-java-basics.iml
