@@ -27,7 +27,6 @@ import org.gradle.api.artifacts.ExcludeRule
 import org.gradle.api.plugins.JavaPlugin
 
 
-
 /**
  * This plugin adds Jar signing capabilities to a Java project.
  *
@@ -36,48 +35,68 @@ import org.gradle.api.plugins.JavaPlugin
  */
 class RapidMinerJavaSigningPlugin implements Plugin<Project> {
 
-	@Override
-	void apply(Project project) {
+    @Override
+    void apply(Project project) {
 
-		project.configure(project) {
-			apply plugin: 'java'
+        project.configure(project) {
+            apply plugin: 'java'
 
-			ext {
-				keystore = System.properties['keystore']
-				storepass = System.properties['storepass']
-				signAlias = System.properties['alias']
-			}
+            if (!project.hasProperty("keystore")) {
+                ext.keystore = System.properties['keystore']
+            } else {
+                project.logger.info "Java Signing: 'keystore' property already set. Skipping setting of 'keystore' external property."
+            }
 
-			def isRelease = !version.endsWith('-SNAPSHOT')
-			if(isRelease){
-				project.logger.info "#### Release version detected. Signing release jars for version $version."
-			}
 
-			def signRequested =  project.hasProperty("signJar") && Boolean.parseBoolean(signJar)
-			if(signRequested){
-				project.logger.info "#### Signing of jars requested by 'signJar' property."
-			}
+            if (!project.hasProperty('storepass')) {
+                ext.storepass = System.properties['storepass']
+            } else {
+                project.logger.info "Java Signing: 'storepass' property already set. Skipping setting of 'storepass' external property."
+            }
 
-			if(isRelease || signRequested){
+            if (!project.hasProperty('alias')) {
+                ext.alias = System.properties['alias']
+            } else {
+                project.logger.info "Java Signing: 'alias' property already set. Skipping setting of 'alias' external property."
+            }
 
-				// ensure jar is rebuild in each build
-				jar.outputs.upToDateWhen { false }
+            def signRequested = project.hasProperty('signJar') && Boolean.parseBoolean(signJar)
+            if (signRequested) {
+                project.logger.info "Java Signing: Signing of jars requested by 'signJar' property."
+            } else {
+                project.logger.info "Java Signing: Signing of jars was not requested by 'signJar' property."
+            }
 
-				// enhance jar task to sign the jar via Ant signjar task
-				jar.doLast {
-					if(!keystore){
-						throw new GradleException("Cannot create release jar for ${project.name}. Missing keystore system property (e.g. -Dkeystore='/etc/Codesign.keystore'")
-					} else if(!storepass){
-						throw new GradleException("Cannot create release jar for ${project.name}. Missing storepass system property (e.g. -Dstorepass='grrrrrr'")
-					}else if(!signAlias){
-						throw new GradleException("Cannot create release jar for ${project.name}. Missing alias system property (e.g. -Dalias='rapidminer'")
-					}
-					ant.signjar(jar: jar.archivePath, alias: signAlias, keystore: keystore, storepass: storepass)
-				}
-			} else {
-				project.logger.info "Version $version it not a release. Skipping signing of jar."
-			}
+            def isRelease = !version.endsWith('-SNAPSHOT')
+            if(!signRequested){
+                if (isRelease) {
+                    project.logger.info "Java Signing: Release version detected. Signing release jars for version $version."
+                } else {
+                    project.logger.info "Java Signing: No release version detected. Skipping signing jars for version $version."
+                }
+            }
 
-		}
-	}
+            if (isRelease || signRequested) {
+
+                // ensure jar is rebuild in each build
+                jar.outputs.upToDateWhen { false }
+
+                // enhance jar task to sign the jar via Ant signjar task
+                jar.doLast {
+                    project.logger.info "Java Signing: Signing jar for ${project.name}."
+                    if (!keystore) {
+                        throw new GradleException("Cannot create release jar for ${project.name}. Missing keystore system property (e.g. -Dkeystore='/etc/Codesign.keystore'")
+                    } else if (!storepass) {
+                        throw new GradleException("Cannot create release jar for ${project.name}. Missing storepass system property (e.g. -Dstorepass='grrrrrr'")
+                    } else if (!alias) {
+                        throw new GradleException("Cannot create release jar for ${project.name}. Missing alias system property (e.g. -Dalias='rapidminer'")
+                    }
+                    ant.signjar(jar: jar.archivePath, alias: alias, keystore: keystore, storepass: storepass)
+                }
+            } else {
+                project.logger.info "Java Signing: Skipping signing of jar for ${project.name}"
+            }
+
+        }
+    }
 }
