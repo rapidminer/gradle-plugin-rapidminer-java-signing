@@ -16,16 +16,9 @@
 package com.rapidminer.gradle
 
 import org.gradle.api.GradleException
-import org.gradle.api.JavaVersion
 import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.api.UnknownTaskException
-import org.gradle.api.tasks.compile.JavaCompile
-import org.gradle.api.tasks.javadoc.Javadoc
-import org.gradle.api.artifacts.ModuleDependency
-import org.gradle.api.artifacts.ExcludeRule
-import org.gradle.api.plugins.JavaPlugin
-
 
 /**
  * This plugin adds Jar signing capabilities to a Java project.
@@ -68,7 +61,7 @@ class RapidMinerJavaSigningPlugin implements Plugin<Project> {
             }
 
             def isRelease = !version.endsWith('-SNAPSHOT')
-            if(!signRequested){
+            if (!signRequested) {
                 if (isRelease) {
                     project.logger.info "Java Signing: Release version detected. Signing release jars for version $version."
                 } else {
@@ -92,6 +85,32 @@ class RapidMinerJavaSigningPlugin implements Plugin<Project> {
                         throw new GradleException("Cannot create release jar for ${project.name}. Missing alias system property (e.g. -Dalias='rapidminer'")
                     }
                     ant.signjar(jar: jar.archivePath, alias: alias, keystore: keystore, storepass: storepass)
+                }
+
+
+                afterEvaluate {
+
+                    try {
+                        // check if task exists
+                        project.tasks.getByName('shadowJar')
+
+                        // ensure shadowJar is rebuild in each build
+                        shadowJar.outputs.upToDateWhen { false }
+
+                        shadowJar.doLast {
+                            project.logger.info "Java Signing: Signing shadowJar for ${project.name}."
+                            if (!keystore) {
+                                throw new GradleException("Cannot create release shadowJar for ${project.name}. Missing keystore system property (e.g. -Dkeystore='/etc/Codesign.keystore'")
+                            } else if (!storepass) {
+                                throw new GradleException("Cannot create release shadowJar for ${project.name}. Missing storepass system property (e.g. -Dstorepass='grrrrrr'")
+                            } else if (!alias) {
+                                throw new GradleException("Cannot create release shadowJar for ${project.name}. Missing alias system property (e.g. -Dalias='rapidminer'")
+                            }
+                            ant.signjar(jar: shadowJar.archivePath, alias: alias, keystore: keystore, storepass: storepass)
+                        }
+                    } catch (UnknownTaskException e) {
+                        project.logger.debug('Cannot configure shadowJar task signing. Project does not apply shadow plugin.')
+                    }
                 }
             } else {
                 project.logger.info "Java Signing: Skipping signing of jar for ${project.name}"
