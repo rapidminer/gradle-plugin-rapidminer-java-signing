@@ -35,25 +35,35 @@ class RapidMinerJavaSigningPlugin implements Plugin<Project> {
             apply plugin: 'java'
 
             if (!project.hasProperty("keystore")) {
-                ext.keystore = System.properties['keystore']
+                ext.keystore = System.getenv('com.rapidminer.java-signing.keystore')
+                project.logger.info "Java Signing: Retrieve 'keystore' property from system environment (key: com.rapidminer.java-signing.keystore, value: ${keystore})."
             } else {
-                project.logger.info "Java Signing: 'keystore' property already set. Skipping setting of 'keystore' external property."
+                project.logger.info "Java Signing: 'keystore' property already (value: ${keystore}) set by project property. Skipping lookup of 'keystore' lookup property."
             }
 
 
             if (!project.hasProperty('storepass')) {
-                ext.storepass = System.properties['storepass']
+                ext.storepass = System.getenv('com.rapidminer.java-signing.storepass')
+                project.logger.info "Java Signing: Retrieve 'storepass' property from system environment (key: com.rapidminer.java-signing.storepass)."
             } else {
-                project.logger.info "Java Signing: 'storepass' property already set. Skipping setting of 'storepass' external property."
+                project.logger.info "Java Signing: 'storepass' property already set by project property. Skipping lookup of 'storepass' lookup property."
             }
 
             if (!project.hasProperty('alias')) {
-                ext.alias = System.properties['alias']
+                ext.alias = System.getenv('com.rapidminer.java-signing.alias')
+                project.logger.info "Java Signing: Retrieve 'alias' property from system environment (key: com.rapidminer.java-signing.alias, value: ${alias})."
             } else {
-                project.logger.info "Java Signing: 'alias' property already set. Skipping setting of 'alias' external property."
+                project.logger.info "Java Signing: 'alias' property already set by project property. Skipping lookup of 'alias' system property."
             }
 
-            def signRequested = project.hasProperty('signJar') && Boolean.parseBoolean(signJar)
+            if (!project.hasProperty('signJar')) {
+                ext.signJar = System.getenv('com.rapidminer.java-signing.signJar')
+                project.logger.info "Java Signing: Retrieve 'signJar' property from system environment (key: com.rapidminer.java-signing.signJar, value: ${signJar})."
+            } else {
+                project.logger.info "Java Signing: 'signJar' property already set by project property. Skipping lookup of 'signJar' system property."
+            }
+
+            def signRequested = signJar && Boolean.parseBoolean(signJar)
             if (signRequested) {
                 project.logger.info "Java Signing: Signing of jars requested by 'signJar' property."
             } else {
@@ -78,11 +88,11 @@ class RapidMinerJavaSigningPlugin implements Plugin<Project> {
                 jar.doLast {
                     project.logger.info "Java Signing: Signing jar for ${project.name}."
                     if (!keystore) {
-                        throw new GradleException("Cannot create release jar for ${project.name}. Missing keystore system property (e.g. -Dkeystore='/etc/Codesign.keystore'")
+                        throw new GradleException("Cannot create signed jar for ${project.name}. Missing keystore property.")
                     } else if (!storepass) {
-                        throw new GradleException("Cannot create release jar for ${project.name}. Missing storepass system property (e.g. -Dstorepass='grrrrrr'")
+                        throw new GradleException("Cannot create signed jar for ${project.name}. Missing storepass property.")
                     } else if (!alias) {
-                        throw new GradleException("Cannot create release jar for ${project.name}. Missing alias system property (e.g. -Dalias='rapidminer'")
+                        throw new GradleException("Cannot create signed jar for ${project.name}. Missing alias property.")
                     }
                     ant.signjar(jar: jar.archivePath, alias: alias, keystore: keystore, storepass: storepass)
                 }
@@ -91,7 +101,25 @@ class RapidMinerJavaSigningPlugin implements Plugin<Project> {
                 afterEvaluate {
 
                     try {
-                        // check if task exists
+                        // check if testJar task exists
+                        project.tasks.getByName('testJar')
+
+                        // ensure shadowJar is rebuild in each build
+                        testJar.outputs.upToDateWhen { false }
+
+                        testJar.doLast {
+                            project.logger.info "Java Signing: Signing testJar for ${project.name}."
+                            if (!keystore) {
+                                throw new GradleException("Cannot create signed testJar for ${project.name}. Missing keystore property.")
+                            } else if (!storepass) {
+                                throw new GradleException("Cannot create signed testJar for ${project.name}. Missing storepass property.")
+                            } else if (!alias) {
+                                throw new GradleException("Cannot create signed testJar for ${project.name}. Missing alias property.")
+                            }
+                            ant.signjar(jar: shadowJar.archivePath, alias: alias, keystore: keystore, storepass: storepass)
+                        }
+
+                        // check if shadowJar task exists
                         project.tasks.getByName('shadowJar')
 
                         // ensure shadowJar is rebuild in each build
@@ -100,11 +128,11 @@ class RapidMinerJavaSigningPlugin implements Plugin<Project> {
                         shadowJar.doLast {
                             project.logger.info "Java Signing: Signing shadowJar for ${project.name}."
                             if (!keystore) {
-                                throw new GradleException("Cannot create release shadowJar for ${project.name}. Missing keystore system property (e.g. -Dkeystore='/etc/Codesign.keystore'")
+                                throw new GradleException("Cannot create signed shadowJar for ${project.name}. Missing keystore property.")
                             } else if (!storepass) {
-                                throw new GradleException("Cannot create release shadowJar for ${project.name}. Missing storepass system property (e.g. -Dstorepass='grrrrrr'")
+                                throw new GradleException("Cannot create signed shadowJar for ${project.name}. Missing storepass property.")
                             } else if (!alias) {
-                                throw new GradleException("Cannot create release shadowJar for ${project.name}. Missing alias system property (e.g. -Dalias='rapidminer'")
+                                throw new GradleException("Cannot create signed shadowJar for ${project.name}. Missing alias property.")
                             }
                             ant.signjar(jar: shadowJar.archivePath, alias: alias, keystore: keystore, storepass: storepass)
                         }
