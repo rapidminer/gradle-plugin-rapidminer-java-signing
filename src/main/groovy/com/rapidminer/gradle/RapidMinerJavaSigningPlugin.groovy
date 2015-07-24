@@ -116,7 +116,7 @@ class RapidMinerJavaSigningPlugin implements Plugin<Project> {
                             } else if (!alias) {
                                 throw new GradleException("Cannot create signed testJar for ${project.name}. Missing alias property.")
                             }
-                            ant.signjar(jar: shadowJar.archivePath, alias: alias, keystore: keystore, storepass: storepass)
+                            ant.signjar(jar: testJar.archivePath, alias: alias, keystore: keystore, storepass: storepass)
                         }
 
                         // check if shadowJar task exists
