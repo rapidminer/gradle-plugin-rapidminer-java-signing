@@ -118,7 +118,11 @@ class RapidMinerJavaSigningPlugin implements Plugin<Project> {
                             }
                             ant.signjar(jar: testJar.archivePath, alias: alias, keystore: keystore, storepass: storepass)
                         }
+                    } catch (UnknownTaskException e) {
+                        project.logger.debug('Cannot configure testJar task signing. Project does not apply shadow plugin.')
+                    }
 
+                    try {
                         // check if shadowJar task exists
                         project.tasks.getByName('shadowJar')
 
