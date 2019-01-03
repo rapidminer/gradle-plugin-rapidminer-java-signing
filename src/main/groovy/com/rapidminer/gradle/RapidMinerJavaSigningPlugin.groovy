@@ -70,7 +70,7 @@ class RapidMinerJavaSigningPlugin implements Plugin<Project> {
                 project.logger.info "Java Signing: Signing of jars was not requested by 'signJar' property."
             }
 
-            def isRelease = !version.endsWith('-SNAPSHOT')
+            def isRelease = !version.contains('-SNAPSHOT')
             if (!signRequested) {
                 if (isRelease) {
                     project.logger.info "Java Signing: Release version detected. Signing release jars for version $version."
